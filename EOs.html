@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Executive Orders by Presidential Term</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    canvas { display: block; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <h2>Executive Orders by Presidential Term<br>
+      (Highlighting Trump II Pace)</h2>
+  <canvas id="eoChart" width="900" height="500"></canvas>
+
+  <script defer>
+  window.addEventListener('DOMContentLoaded', () => {
+    // 1) Chronological data from Eisenhower through Biden
+    const terms = [
+      { name: 'Eisenhower', total: 484, years: 8 },
+      { name: 'Kennedy',    total: 214, years: 2.84 },
+      { name: 'Johnson',    total: 325, years: 5.17 },
+      { name: 'Nixon',      total: 346, years: 5.55 },
+      { name: 'Ford',       total: 169, years: 2.45 },
+      { name: 'Carter',     total: 320, years: 4 },
+      { name: 'Reagan I',   total: 213, years: 4 },
+      { name: 'Reagan II',  total: 168, years: 4 },
+      { name: 'G.H.W. Bush',total: 166, years: 4 },
+      { name: 'Clinton I',  total: 200, years: 4 },
+      { name: 'Clinton II', total: 164, years: 4 },
+      { name: 'W. Bush I',  total: 173, years: 4 },
+      { name: 'W. Bush II', total: 118, years: 4 },
+      { name: 'Obama I',    total: 147, years: 4 },
+      { name: 'Obama II',   total: 129, years: 4 },
+      { name: 'Trump I',    total: 220, years: 4 },
+      { name: 'Trump II',   total: 143, years: 0.25 },
+      { name: 'Biden',      total: 162, years: 4 }
+    ];
+
+    // 2) Compute Trump II rate & 4-yr projection
+    const trump2     = terms.find(t => t.name === 'Trump II');
+    const trumpRate  = trump2.total / trump2.years;         // ≈572 EOs/yr
+    const projTotal  = Math.round(trumpRate * 4);           // EOs at year 4
+
+    // 3) Expandable color palette
+    const palette = [
+      '#1f77b4','#ff7f0e','#2ca02c','#9467bd',
+      '#8c564b','#e377c2','#7f7f7f','#bcbd22',
+      '#17becf','#aec7e8','#ffbb78','#98df8a',
+      '#d62728','#1f77b4','#ff7f0e','#2ca02c',
+      '#9467bd','#8c564b','#e377c2'
+    ];
+
+    // 4) Build datasets in order
+    const datasets = terms.map((term,i) => {
+      const isTrumpII = term.name === 'Trump II';
+      const color     = isTrumpII ? '#d62728' : palette[i];
+      return {
+        label: term.name,
+        data: [
+          { x: 0, y: 0 },
+          { x: term.years, y: term.total }
+        ],
+        borderColor: color,
+        borderWidth: isTrumpII ? 4 : 2,
+        pointRadius: isTrumpII ? 5 : 3,
+        tension: 0.3,
+        fill: false
+      };
+    });
+
+    // 5) Trump II 4-yr projection
+    datasets.push({
+      label: 'Trump II projection (4 yrs)',
+      data: [
+        { x: 0, y: 0 },
+        { x: 4, y: projTotal }
+      ],
+      borderColor: '#d62728',
+      borderWidth: 2,
+      borderDash: [6,4],
+      pointRadius: 0,
+      tension: 0.1,
+      fill: false
+    });
+
+    // 6) Plugin: callouts with clear, offset positions
+    const calloutPlugin = {
+      id: 'calloutPlugin',
+      afterDraw(chart) {
+        const { ctx, scales } = chart;
+        const xScale = scales.x;
+        const yScale = scales.y;
+        ctx.save();
+        ctx.font = 'bold 12px sans-serif';
+
+        function drawCallout(text, x, y) {
+          const m = ctx.measureText(text);
+          const pad = 4, h = 12;
+          ctx.fillStyle = 'white';
+          ctx.fillRect(x - pad, y - h - pad, m.width + pad*2, h + pad*2);
+          ctx.fillStyle = '#d62728';
+          ctx.fillText(text, x, y);
+        }
+
+        // actual at 0.25yr, shift up/left
+        const ax = xScale.getPixelForValue(trump2.years) - 80;
+        const ay = yScale.getPixelForValue(trump2.total) - 20;
+        drawCallout(`143 EOs @ 0.25 yr`, ax, ay);
+
+        // projected at 4yr, shift up/left
+        const px = xScale.getPixelForValue(4) - 120;
+        const py = yScale.getPixelForValue(projTotal) - 20;
+        drawCallout(`${projTotal} EOs @ 4 yrs`, px, py);
+
+        ctx.restore();
+      }
+    };
+
+    // 7) Render chart
+    const ctx = document.getElementById('eoChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: false,
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0, max: 4,
+            title: { display: true, text: 'Years in Office' },
+            ticks: { stepSize: 1 }
+          },
+          y: {
+            beginAtZero: true,
+            max: Math.max(projTotal, 2100),
+            title: { display: true, text: 'Total Executive Orders' }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { usePointStyle: true, pointStyle: 'line' }
+          },
+          title: {
+            display: true,
+            text: 'Executive Orders by Presidential Term'
+          }
+        }
+      },
+      plugins: [calloutPlugin]
+    });
+  });
+  </script>
+</body>
+</html>
+
